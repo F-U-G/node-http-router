@@ -1,3 +1,5 @@
 GET http://localhost:3000/
-GET http://localhost:3000/urgay
-
+GET http://localhost:3000/About
+GET http://localhost:3000/badlink
+POST http://localhost:3000/
+GET http://localhost:3000/api/test
