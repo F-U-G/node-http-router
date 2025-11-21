@@ -1,5 +1,14 @@
 GET http://localhost:3000/
 GET http://localhost:3000/About
 GET http://localhost:3000/badlink
-POST http://localhost:3000/
 GET http://localhost:3000/api/test
+DELETE http://localhost:3000/
+POST http://localhost:3000/api/urgay
+POST http://localhost:3000/api/test
+Content-Type: application/json
+
+{
+  "hello": "frug",
+  "ur": "supa gay",
+  "id": 4
+}

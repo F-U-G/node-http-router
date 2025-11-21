@@ -1,7 +1,6 @@
 import http from 'http';
-import fs from 'fs/promises';
-import url from 'url';
-import path from 'path';
+import { logger, postMW } from './src/middleware.js';
+import { handleHomePg, handleAboutPg, handleTestApi } from './src/handlers.js';
 const PORT = process.env.PORT;
 
 class HttpError extends Error { // Extending the Error class so that we can pass http codes
@@ -12,50 +11,75 @@ class HttpError extends Error { // Extending the Error class so that we can pass
   }
 }
 
-const testJson = [
+let testJson = [
   { hello: 'world', ur: 'gay', id: 1 },
   { hello: 'John', ur: 'extra gay', id: 2 },
   { hello: 'gamer', ur: 'not gay', id: 3 }
 ];
 
-const __filename = url.fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+// const __filename = url.fileURLToPath(import.meta.url);
+// const __dirname = path.dirname(__filename);
 
-function sendResponse(res, type, write) {
-  res.setHeader('Content-Type', type)
-  res.write(write);
-  res.end();
-}
+const server = http.createServer((req, res) => {
+  logger(req, res, () => {
+    try {
+      if (req.method === 'GET') {
 
-const server = http.createServer(async (req, res) => {
-  try {
-    if (req.method === 'GET') {
-      let filePath;
-      if (req.url === '/') {
-        filePath = path.join(__dirname, 'public', 'index.html');
-        const data = await fs.readFile(filePath);
-        sendResponse(res, 'text/html', data)
+        switch (req.url) {
+          case '/':
+            handleHomePg(req, res);
+            break;
+          case '/About':
+            handleAboutPg(req, res);
+            break;
+          case '/api/test': // add a regex check for just /api/ and handle multiple apis within
+            handleTestApi(req, res, testJson);
+            break;
+          default:
+            throw new HttpError('Page Not Found', 404);
+        }
 
-      } else if (req.url === '/About') {
-        filePath = path.join(__dirname, 'public', 'about.html');
-        const data = await fs.readFile(filePath);
-        sendResponse(res, 'text/html', data)
+      } else if (req.method == 'POST') {
 
-      } else if (req.url === '/api/test') {
-        sendResponse(res, 'aplication/json', JSON.stringify(testJson));
+        postMW(req, res, (body) => {
+          switch (req.url) {
+            case '/api/test':
+              //error handle here for body
+              req.on('end', () => {
+                testJson.push(JSON.parse(body));
+                res.statusCode = 201;
+                res.write(JSON.stringify(testJson));
+                res.end()
+              });
+              break;
+            // case '/api/users':
+            //   //handleUserPost
+            //   req.on('end', () => {
+            //     res.statusCode = 201;
+            //     res.write();
+            //     res.end()
+            //   });
+            //   break;
+            default:
+              try {
+                throw new HttpError('Page Not Found', 404);
+              } catch (error) {
+                console.log(error);
+                res.writeHead(error.errorCode, { 'Content-Type': 'text/plain' });
+                res.end(`${error.message}`);
+              }
+          }
+        });
 
       } else {
-        throw new HttpError('Page Not Found', 404);
+        throw new HttpError('Method not correct, use GET or POST', 400);
       }
-
-    } else {
-      throw new HttpError('Method not correct, use GET', 400);
+    } catch (error) {
+      console.log(error);
+      res.writeHead(error.errorCode, { 'Content-Type': 'text/plain' });
+      res.end(`${error.message}`);
     }
-  } catch (error) {
-    console.log(error);
-    res.writeHead(error.errorCode, { 'Content-Type': 'text/plain' });
-    res.end(`${error.message}`);
-  }
+  });
 });
 
 server.listen(PORT, () => {
